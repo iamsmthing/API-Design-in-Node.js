@@ -4,7 +4,7 @@ import prisma from "../db";
 export const getOneUpdate = async (req, res) => {
   const product = await prisma.update.findUnique({
     where: {
-      id: req.user.id,
+      id: req.params.id,
     },
   });
   res.json({ data: product });
@@ -30,7 +30,7 @@ export const getUpdates = async (req, res) => {
 export const createUpdate = async (req, res) => {
   const product = await prisma.product.findUnique({
     where: {
-      id: req.body.id,
+      id: req.body.productId,
     },
   });
   if (!product) {
@@ -38,11 +38,71 @@ export const createUpdate = async (req, res) => {
   }
 
   const update = await prisma.update.create({
-    data: req.body,
+    data: {
+      title: req.body.title,
+      body: req.body.body,
+      // productId: req.body.productId,
+      product: { connect: { id: product.id } },
+    },
   });
   res.json({ data: update });
 };
 
-export const updateUpdate = async () => {};
+export const updateUpdate = async (req, res) => {
+  const products = await prisma.product.findMany({
+    where: {
+      belongsToId: req.user.id,
+    },
+    include: {
+      updates: true,
+    },
+  });
 
-export const deleteUpdate = async () => {};
+  const updates = products.reduce((allUpdates, product) => {
+    return [...allUpdates, ...product.updates];
+  }, []);
+
+  const match = updates.find((update) => update.id === req.params.id);
+  if (!match) {
+    return res.json({ message: "Nope" });
+  }
+
+  const updatedUpdate = await prisma.update.update({
+    where: {
+      id: req.params.id,
+    },
+    data: req.body,
+  });
+
+  res.json({ data: updatedUpdate });
+};
+
+export const deleteUpdate = async (req, res) => {
+  const products = await prisma.product.findMany({
+    where: {
+      belongsToId: req.user.id,
+    },
+    include: {
+      updates: true,
+    },
+  });
+
+  const updates = products.reduce((allUpdates, product) => {
+    return [...allUpdates, ...product.updates];
+  }, []);
+  console.log(updates);
+  console.log("req.params.id:", req.params.id);
+  const match = updates.find((update) => update.id === req.params.id);
+
+  if (!match) {
+    return res.json({ message: "Nope" });
+  }
+
+  const deleted = await prisma.update.delete({
+    where: {
+      id: req.params.id,
+    },
+  });
+
+  res.json({ data: deleted });
+};
